@@ -10,9 +10,10 @@ import {
   renderStreamingGroup,
 } from "../chat/grouped-render.ts";
 import { normalizeMessage, normalizeRoleForGrouping } from "../chat/message-normalizer.ts";
+import { t } from "../i18n/index.ts";
 import { icons } from "../icons.ts";
-import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
 import "../components/resizable-divider.ts";
+import { renderMarkdownSidebar } from "./markdown-sidebar.ts";
 
 export type CompactionIndicatorStatus = {
   active: boolean;

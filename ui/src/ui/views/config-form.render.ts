@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 import type { ConfigUiHints } from "../types.ts";
+import { t } from "../i18n/index.ts";
 import { icons } from "../icons.ts";
 import { renderNode } from "./config-form.node.ts";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared.ts";
@@ -236,7 +237,56 @@ const sectionIcons = {
   `,
 };
 
-// Section metadata
+// Section metadata keys for i18n lookup
+const SECTION_META_KEYS: Record<string, { labelKey: string; descKey: string }> = {
+  env: { labelKey: "sectionEnv", descKey: "sectionEnvDesc" },
+  update: { labelKey: "sectionUpdate", descKey: "sectionUpdateDesc" },
+  agents: { labelKey: "sectionAgents", descKey: "sectionAgentsDesc" },
+  auth: { labelKey: "sectionAuth", descKey: "sectionAuthDesc" },
+  channels: { labelKey: "sectionChannels", descKey: "sectionChannelsDesc" },
+  messages: { labelKey: "sectionMessages", descKey: "sectionMessagesDesc" },
+  commands: { labelKey: "sectionCommands", descKey: "sectionCommandsDesc" },
+  hooks: { labelKey: "sectionHooks", descKey: "sectionHooksDesc" },
+  skills: { labelKey: "sectionSkills", descKey: "sectionSkillsDesc" },
+  tools: { labelKey: "sectionTools", descKey: "sectionToolsDesc" },
+  gateway: { labelKey: "sectionGateway", descKey: "sectionGatewayDesc" },
+  wizard: { labelKey: "sectionWizard", descKey: "sectionWizardDesc" },
+  // Additional sections
+  meta: { labelKey: "sectionMeta", descKey: "sectionMetaDesc" },
+  logging: { labelKey: "sectionLogging", descKey: "sectionLoggingDesc" },
+  browser: { labelKey: "sectionBrowser", descKey: "sectionBrowserDesc" },
+  ui: { labelKey: "sectionUi", descKey: "sectionUiDesc" },
+  models: { labelKey: "sectionModels", descKey: "sectionModelsDesc" },
+  bindings: { labelKey: "sectionBindings", descKey: "sectionBindingsDesc" },
+  broadcast: { labelKey: "sectionBroadcast", descKey: "sectionBroadcastDesc" },
+  audio: { labelKey: "sectionAudio", descKey: "sectionAudioDesc" },
+  session: { labelKey: "sectionSession", descKey: "sectionSessionDesc" },
+  cron: { labelKey: "sectionCron", descKey: "sectionCronDesc" },
+  web: { labelKey: "sectionWeb", descKey: "sectionWebDesc" },
+  discovery: { labelKey: "sectionDiscovery", descKey: "sectionDiscoveryDesc" },
+  canvasHost: { labelKey: "sectionCanvasHost", descKey: "sectionCanvasHostDesc" },
+  talk: { labelKey: "sectionTalk", descKey: "sectionTalkDesc" },
+  plugins: { labelKey: "sectionPlugins", descKey: "sectionPluginsDesc" },
+};
+
+/**
+ * Get localized section metadata by key
+ */
+export function getSectionMeta(key: string): { label: string; description: string } | null {
+  const keys = SECTION_META_KEYS[key];
+  if (!keys) {
+    return null;
+  }
+  // Type assertion needed since keys are dynamic
+  const label = t(keys.labelKey as keyof ReturnType<typeof t>);
+  const description = t(keys.descKey as keyof ReturnType<typeof t>);
+  return {
+    label: typeof label === "string" ? label : String(label),
+    description: typeof description === "string" ? description : String(description),
+  };
+}
+
+// Legacy export for backward compatibility (static English)
 export const SECTION_META: Record<string, { label: string; description: string }> = {
   env: {
     label: "Environment Variables",
@@ -355,14 +405,14 @@ function schemaMatches(schema: JsonSchema, query: string): boolean {
 export function renderConfigForm(props: ConfigFormProps) {
   if (!props.schema) {
     return html`
-      <div class="muted">Schema unavailable.</div>
+      <div class="muted">${t("schemaUnavailable")}</div>
     `;
   }
   const schema = props.schema;
   const value = props.value ?? {};
   if (schemaType(schema) !== "object" || !schema.properties) {
     return html`
-      <div class="callout danger">Unsupported schema. Use Raw.</div>
+      <div class="callout danger">${t("unsupportedSchema")}</div>
     `;
   }
   const unsupported = new Set(props.unsupportedPaths ?? []);
@@ -413,7 +463,7 @@ export function renderConfigForm(props: ConfigFormProps) {
       <div class="config-empty">
         <div class="config-empty__icon">${icons.search}</div>
         <div class="config-empty__text">
-          ${searchQuery ? `No settings match "${searchQuery}"` : "No settings in this section"}
+          ${searchQuery ? t("noSettingsMatch")(searchQuery) : t("noSettingsInSection")}
         </div>
       </div>
     `;
@@ -463,7 +513,7 @@ export function renderConfigForm(props: ConfigFormProps) {
             `;
             })()
           : filteredEntries.map(([key, node]) => {
-              const meta = SECTION_META[key] ?? {
+              const meta = getSectionMeta(key) ?? {
                 label: key.charAt(0).toUpperCase() + key.slice(1),
                 description: node.description ?? "",
               };

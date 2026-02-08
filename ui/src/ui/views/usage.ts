@@ -1,4 +1,5 @@
 import { html, svg, nothing } from "lit";
+import { t } from "../i18n/index.ts";
 import { extractQueryTerms, filterSessionsByQuery, parseToolSummary } from "../usage-helpers.ts";
 
 // Inline styles for usage view (app uses light DOM, so static styles don't work)

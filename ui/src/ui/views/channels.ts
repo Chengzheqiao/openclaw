@@ -15,6 +15,7 @@ import type {
 } from "../types.ts";
 import type { ChannelKey, ChannelsChannelData, ChannelsProps } from "./channels.types.ts";
 import { formatAgo } from "../format.ts";
+import { t } from "../i18n/index.ts";
 import { renderChannelConfigSection } from "./channels.config.ts";
 import { renderDiscordCard } from "./channels.discord.ts";
 import { renderGoogleChatCard } from "./channels.googlechat.ts";
@@ -70,8 +71,8 @@ export function renderChannels(props: ChannelsProps) {
     <section class="card" style="margin-top: 18px;">
       <div class="row" style="justify-content: space-between;">
         <div>
-          <div class="card-title">Channel health</div>
-          <div class="card-sub">Channel status snapshots from the gateway.</div>
+          <div class="card-title">${t("channelStatus")}</div>
+          <div class="card-sub">${t("tabChannelsDesc")}</div>
         </div>
         <div class="muted">${props.lastSuccessAt ? formatAgo(props.lastSuccessAt) : "n/a"}</div>
       </div>

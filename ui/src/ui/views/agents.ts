@@ -17,6 +17,7 @@ import {
   resolveToolProfilePolicy,
 } from "../../../../src/agents/tool-policy.js";
 import { formatAgo } from "../format.ts";
+import { t } from "../i18n/index.ts";
 import {
   formatCronPayload,
   formatCronSchedule,

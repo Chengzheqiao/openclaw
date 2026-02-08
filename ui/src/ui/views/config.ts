@@ -1,7 +1,8 @@
 import { html, nothing } from "lit";
 import type { ConfigUiHints } from "../types.ts";
+import { t, getLocale, setLocale, type Locale } from "../i18n/index.ts";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared.ts";
-import { analyzeConfigSchema, renderConfigForm, SECTION_META } from "./config-form.ts";
+import { analyzeConfigSchema, renderConfigForm, getSectionMeta } from "./config-form.ts";
 
 export type ConfigProps = {
   raw: string;
@@ -262,20 +263,20 @@ const sidebarIcons = {
   `,
 };
 
-// Section definitions
-const SECTIONS: Array<{ key: string; label: string }> = [
-  { key: "env", label: "Environment" },
-  { key: "update", label: "Updates" },
-  { key: "agents", label: "Agents" },
-  { key: "auth", label: "Authentication" },
-  { key: "channels", label: "Channels" },
-  { key: "messages", label: "Messages" },
-  { key: "commands", label: "Commands" },
-  { key: "hooks", label: "Hooks" },
-  { key: "skills", label: "Skills" },
-  { key: "tools", label: "Tools" },
-  { key: "gateway", label: "Gateway" },
-  { key: "wizard", label: "Setup Wizard" },
+// Section definitions - labels are resolved via i18n
+const SECTIONS: Array<{ key: string; labelKey: keyof ReturnType<typeof t> }> = [
+  { key: "env", labelKey: "sectionEnv" },
+  { key: "update", labelKey: "sectionUpdate" },
+  { key: "agents", labelKey: "sectionAgents" },
+  { key: "auth", labelKey: "sectionAuth" },
+  { key: "channels", labelKey: "sectionChannels" },
+  { key: "messages", labelKey: "sectionMessages" },
+  { key: "commands", labelKey: "sectionCommands" },
+  { key: "hooks", labelKey: "sectionHooks" },
+  { key: "skills", labelKey: "sectionSkills" },
+  { key: "tools", labelKey: "sectionTools" },
+  { key: "gateway", labelKey: "sectionGateway" },
+  { key: "wizard", labelKey: "sectionWizard" },
 ];
 
 type SubsectionEntry = {
@@ -298,7 +299,7 @@ function resolveSectionMeta(
   label: string;
   description?: string;
 } {
-  const meta = SECTION_META[key];
+  const meta = getSectionMeta(key);
   if (meta) {
     return meta;
   }
@@ -384,7 +385,7 @@ function truncateValue(value: unknown, maxLen = 40): string {
 }
 
 export function renderConfig(props: ConfigProps) {
-  const validity = props.valid == null ? "unknown" : props.valid ? "valid" : "invalid";
+  const validity = props.valid == null ? t("unknown") : props.valid ? t("valid") : t("invalid");
   const analysis = analyzeConfigSchema(props.schema);
   const formUnsafe = analysis.schema ? analysis.unsupportedPaths.length > 0 : false;
 
@@ -398,7 +399,10 @@ export function renderConfig(props: ConfigProps) {
     .filter((k) => !knownKeys.has(k))
     .map((k) => ({ key: k, label: k.charAt(0).toUpperCase() + k.slice(1) }));
 
-  const allSections = [...availableSections, ...extraSections];
+  const allSections = [
+    ...availableSections.map((s) => ({ key: s.key, label: String(t(s.labelKey)) })),
+    ...extraSections,
+  ];
 
   const activeSectionSchema =
     props.activeSection && analysis.schema && schemaType(analysis.schema) === "object"
@@ -449,10 +453,10 @@ export function renderConfig(props: ConfigProps) {
       <!-- Sidebar -->
       <aside class="config-sidebar">
         <div class="config-sidebar__header">
-          <div class="config-sidebar__title">Settings</div>
+          <div class="config-sidebar__title">${t("settings")}</div>
           <span
             class="pill pill--sm ${
-              validity === "valid" ? "pill--ok" : validity === "invalid" ? "pill--danger" : ""
+              props.valid === true ? "pill--ok" : props.valid === false ? "pill--danger" : ""
             }"
             >${validity}</span
           >
@@ -473,7 +477,7 @@ export function renderConfig(props: ConfigProps) {
           <input
             type="text"
             class="config-search__input"
-            placeholder="Search settings..."
+            placeholder=${t("searchSettings")}
             .value=${props.searchQuery}
             @input=${(e: Event) => props.onSearchChange((e.target as HTMLInputElement).value)}
           />
@@ -498,7 +502,7 @@ export function renderConfig(props: ConfigProps) {
             @click=${() => props.onSectionChange(null)}
           >
             <span class="config-nav__icon">${sidebarIcons.all}</span>
-            <span class="config-nav__label">All Settings</span>
+            <span class="config-nav__label">${t("allSettings")}</span>
           </button>
           ${allSections.map(
             (section) => html`
@@ -523,13 +527,35 @@ export function renderConfig(props: ConfigProps) {
               ?disabled=${props.schemaLoading || !props.schema}
               @click=${() => props.onFormModeChange("form")}
             >
-              Form
+              ${t("form")}
             </button>
             <button
               class="config-mode-toggle__btn ${props.formMode === "raw" ? "active" : ""}"
               @click=${() => props.onFormModeChange("raw")}
             >
-              Raw
+              ${t("raw")}
+            </button>
+          </div>
+          <!-- Language switcher -->
+          <div class="config-lang-toggle">
+            <span class="config-lang-label">${t("language")}:</span>
+            <button
+              class="config-lang-btn ${getLocale() === "en" ? "active" : ""}"
+              @click=${() => {
+                setLocale("en" as Locale);
+                window.location.reload();
+              }}
+            >
+              ${t("languageEn")}
+            </button>
+            <button
+              class="config-lang-btn ${getLocale() === "zh" ? "active" : ""}"
+              @click=${() => {
+                setLocale("zh" as Locale);
+                window.location.reload();
+              }}
+            >
+              ${t("languageZh")}
             </button>
           </div>
         </div>
@@ -546,13 +572,13 @@ export function renderConfig(props: ConfigProps) {
                   <span class="config-changes-badge"
                     >${
                       props.formMode === "raw"
-                        ? "Unsaved changes"
-                        : `${diff.length} unsaved change${diff.length !== 1 ? "s" : ""}`
+                        ? t("unsavedChanges")
+                        : t("unsavedChangesCount")(diff.length)
                     }</span
                   >
                 `
                 : html`
-                    <span class="config-status muted">No changes</span>
+                    <span class="config-status muted">${t("noChanges")}</span>
                   `
             }
           </div>
@@ -562,28 +588,28 @@ export function renderConfig(props: ConfigProps) {
               ?disabled=${props.loading}
               @click=${props.onReload}
             >
-              ${props.loading ? "Loading…" : "Reload"}
+              ${props.loading ? t("loading") : t("reload")}
             </button>
             <button
               class="btn btn--sm primary"
               ?disabled=${!canSave}
               @click=${props.onSave}
             >
-              ${props.saving ? "Saving…" : "Save"}
+              ${props.saving ? t("saving") : t("save")}
             </button>
             <button
               class="btn btn--sm"
               ?disabled=${!canApply}
               @click=${props.onApply}
             >
-              ${props.applying ? "Applying…" : "Apply"}
+              ${props.applying ? t("applying") : t("apply")}
             </button>
             <button
               class="btn btn--sm"
               ?disabled=${!canUpdate}
               @click=${props.onUpdate}
             >
-              ${props.updating ? "Updating…" : "Update"}
+              ${props.updating ? t("updating") : t("update")}
             </button>
           </div>
         </div>
@@ -595,8 +621,7 @@ export function renderConfig(props: ConfigProps) {
               <details class="config-diff">
                 <summary class="config-diff__summary">
                   <span
-                    >View ${diff.length} pending
-                    change${diff.length !== 1 ? "s" : ""}</span
+                    >${t("viewPendingChanges")(diff.length)}</span
                   >
                   <svg
                     class="config-diff__chevron"
@@ -661,7 +686,7 @@ export function renderConfig(props: ConfigProps) {
                   class="config-subnav__item ${effectiveSubsection === null ? "active" : ""}"
                   @click=${() => props.onSubsectionChange(ALL_SUBSECTION)}
                 >
-                  All
+                  ${t("all")}
                 </button>
                 ${subsections.map(
                   (entry) => html`
@@ -691,7 +716,7 @@ export function renderConfig(props: ConfigProps) {
                     ? html`
                         <div class="config-loading">
                           <div class="config-loading__spinner"></div>
-                          <span>Loading schema…</span>
+                          <span>${t("loadingSchema")}</span>
                         </div>
                       `
                     : renderConfigForm({
@@ -710,7 +735,7 @@ export function renderConfig(props: ConfigProps) {
                   formUnsafe
                     ? html`
                         <div class="callout danger" style="margin-top: 12px">
-                          Form view can't safely edit some fields. Use Raw to avoid losing config entries.
+                          ${t("formUnsafeWarning")}
                         </div>
                       `
                     : nothing
@@ -718,7 +743,7 @@ export function renderConfig(props: ConfigProps) {
               `
               : html`
                 <label class="field config-raw-field">
-                  <span>Raw JSON5</span>
+                  <span>${t("rawJson5")}</span>
                   <textarea
                     .value=${props.raw}
                     @input=${(e: Event) =>

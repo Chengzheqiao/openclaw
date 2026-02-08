@@ -11,6 +11,7 @@ import type {
   ExecApprovalsSnapshot,
 } from "../controllers/exec-approvals.ts";
 import { clampText, formatAgo, formatList } from "../format.ts";
+import { t } from "../i18n/index.ts";
 
 export type NodesProps = {
   loading: boolean;

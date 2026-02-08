@@ -52,7 +52,13 @@ import {
 } from "./controllers/skills.ts";
 import { loadUsage, loadSessionTimeSeries, loadSessionLogs } from "./controllers/usage.ts";
 import { icons } from "./icons.ts";
-import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
+import {
+  normalizeBasePath,
+  TAB_GROUPS,
+  subtitleForTab,
+  titleForTab,
+  getTabGroupLabel,
+} from "./navigation.ts";
 
 // Module-scope debounce for usage date changes (avoids type-unsafe hacks on state object)
 let usageDateDebounceTimeout: number | null = null;
@@ -153,7 +159,7 @@ export function renderApp(state: AppViewState) {
       </header>
       <aside class="nav ${state.settings.navCollapsed ? "nav--collapsed" : ""}">
         ${TAB_GROUPS.map((group) => {
-          const isGroupCollapsed = state.settings.navGroupsCollapsed[group.label] ?? false;
+          const isGroupCollapsed = state.settings.navGroupsCollapsed[group.labelKey] ?? false;
           const hasActiveTab = group.tabs.some((tab) => tab === state.tab);
           return html`
             <div class="nav-group ${isGroupCollapsed && !hasActiveTab ? "nav-group--collapsed" : ""}">
@@ -161,7 +167,7 @@ export function renderApp(state: AppViewState) {
                 class="nav-label"
                 @click=${() => {
                   const next = { ...state.settings.navGroupsCollapsed };
-                  next[group.label] = !isGroupCollapsed;
+                  next[group.labelKey] = !isGroupCollapsed;
                   state.applySettings({
                     ...state.settings,
                     navGroupsCollapsed: next,
@@ -169,7 +175,7 @@ export function renderApp(state: AppViewState) {
                 }}
                 aria-expanded=${!isGroupCollapsed}
               >
-                <span class="nav-label__text">${group.label}</span>
+                <span class="nav-label__text">${getTabGroupLabel(group.labelKey)}</span>
                 <span class="nav-label__chevron">${isGroupCollapsed ? "+" : "−"}</span>
               </button>
               <div class="nav-group__items">

@@ -1,14 +1,19 @@
 import type { IconName } from "./icons.js";
+import { t } from "./i18n/index.ts";
 
 export const TAB_GROUPS = [
-  { label: "Chat", tabs: ["chat"] },
+  { labelKey: "tabGroupChat" as const, tabs: ["chat"] },
   {
-    label: "Control",
+    labelKey: "tabGroupControl" as const,
     tabs: ["overview", "channels", "instances", "sessions", "usage", "cron"],
   },
-  { label: "Agent", tabs: ["agents", "skills", "nodes"] },
-  { label: "Settings", tabs: ["config", "debug", "logs"] },
+  { labelKey: "tabGroupAgent" as const, tabs: ["agents", "skills", "nodes"] },
+  { labelKey: "tabGroupSettings" as const, tabs: ["config", "debug", "logs"] },
 ] as const;
+
+export function getTabGroupLabel(labelKey: string): string {
+  return t(labelKey as keyof ReturnType<typeof t>) as string;
+}
 
 export type Tab =
   | "agents"
@@ -158,64 +163,64 @@ export function iconForTab(tab: Tab): IconName {
 export function titleForTab(tab: Tab) {
   switch (tab) {
     case "agents":
-      return "Agents";
+      return t("tabAgents");
     case "overview":
-      return "Overview";
+      return t("tabOverview");
     case "channels":
-      return "Channels";
+      return t("tabChannels");
     case "instances":
-      return "Instances";
+      return t("tabInstances");
     case "sessions":
-      return "Sessions";
+      return t("tabSessions");
     case "usage":
-      return "Usage";
+      return t("tabUsage");
     case "cron":
-      return "Cron Jobs";
+      return t("tabCron");
     case "skills":
-      return "Skills";
+      return t("tabSkills");
     case "nodes":
-      return "Nodes";
+      return t("tabNodes");
     case "chat":
-      return "Chat";
+      return t("tabChat");
     case "config":
-      return "Config";
+      return t("tabConfig");
     case "debug":
-      return "Debug";
+      return t("tabDebug");
     case "logs":
-      return "Logs";
+      return t("tabLogs");
     default:
-      return "Control";
+      return t("tabGroupControl");
   }
 }
 
 export function subtitleForTab(tab: Tab) {
   switch (tab) {
     case "agents":
-      return "Manage agent workspaces, tools, and identities.";
+      return t("tabAgentsDesc");
     case "overview":
-      return "Gateway status, entry points, and a fast health read.";
+      return t("tabOverviewDesc");
     case "channels":
-      return "Manage channels and settings.";
+      return t("tabChannelsDesc");
     case "instances":
-      return "Presence beacons from connected clients and nodes.";
+      return t("tabInstancesDesc");
     case "sessions":
-      return "Inspect active sessions and adjust per-session defaults.";
+      return t("tabSessionsDesc");
     case "usage":
-      return "";
+      return t("tabUsageDesc");
     case "cron":
-      return "Schedule wakeups and recurring agent runs.";
+      return t("tabCronDesc");
     case "skills":
-      return "Manage skill availability and API key injection.";
+      return t("tabSkillsDesc");
     case "nodes":
-      return "Paired devices, capabilities, and command exposure.";
+      return t("tabNodesDesc");
     case "chat":
-      return "Direct gateway chat session for quick interventions.";
+      return t("tabChatDesc");
     case "config":
-      return "Edit ~/.openclaw/openclaw.json safely.";
+      return t("tabConfigDesc");
     case "debug":
-      return "Gateway snapshots, events, and manual RPC calls.";
+      return t("tabDebugDesc");
     case "logs":
-      return "Live tail of the gateway file logs.";
+      return t("tabLogsDesc");
     default:
       return "";
   }

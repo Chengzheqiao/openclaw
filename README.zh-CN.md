@@ -85,6 +85,35 @@ pnpm build
 pnpm openclaw onboard --install-daemon
 ```
 
+## 插件开发最佳实践
+
+### Gateway 方法中的配置访问
+
+通过 `api.registerGatewayMethod` 注册的方法，handler 接收的标准参数为 `{ req, params, client, respond, context, isWebchatConnect }`，**不包含** `cfg`（配置对象）。
+
+如果插件需要在 gateway 方法中读取配置，应通过 `register(api)` 闭包捕获 `api.config`：
+
+```typescript
+// ✅ 正确写法：通过闭包访问 api.config
+export default {
+  register(api) {
+    api.registerGatewayMethod("myplugin.send", async ({ respond, params }) => {
+      const cfg = api.config; // 从闭包获取
+      const log = api.logger; // 从闭包获取
+      const myConfig = cfg?.channels?.["myplugin"] || {};
+      // ...
+    });
+  },
+};
+
+// ❌ 错误写法：从 handler 参数解构 cfg（不存在该字段）
+api.registerGatewayMethod("myplugin.send", async ({ respond, cfg, params }: any) => {
+  // cfg 为 undefined！
+});
+```
+
+同理，`log` 也不在标准参数中，应使用 `api.logger`。
+
 ---
 
 ## 最新更新 (Release Notes)

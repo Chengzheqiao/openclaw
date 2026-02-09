@@ -484,10 +484,12 @@ export function renderConfigForm(props: ConfigFormProps) {
                   ? (sectionValue as Record<string, unknown>)[subsectionKey]
                   : undefined;
               const id = `config-section-${sectionKey}-${subsectionKey}`;
+              // Use subsection icon if available, otherwise fall back to section icon
+              const subsectionIcon = getSectionIcon(subsectionKey);
               return html`
               <section class="config-section-card" id=${id}>
                 <div class="config-section-card__header">
-                  <span class="config-section-card__icon">${getSectionIcon(sectionKey)}</span>
+                  <span class="config-section-card__icon">${subsectionIcon}</span>
                   <div class="config-section-card__titles">
                     <h3 class="config-section-card__title">${label}</h3>
                     ${

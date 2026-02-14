@@ -460,7 +460,9 @@ function hasWebSearchKey(cfg: OpenClawConfig, env: NodeJS.ProcessEnv): boolean {
   const search = cfg.tools?.web?.search;
   return Boolean(
     search?.apiKey ||
+    search?.serper?.apiKey ||
     search?.perplexity?.apiKey ||
+    env.SERPER_API_KEY ||
     env.BRAVE_API_KEY ||
     env.PERPLEXITY_API_KEY ||
     env.OPENROUTER_API_KEY,

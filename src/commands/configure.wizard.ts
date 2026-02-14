@@ -94,12 +94,13 @@ async function promptWebToolsConfig(
 ): Promise<OpenClawConfig> {
   const existingSearch = nextConfig.tools?.web?.search;
   const existingFetch = nextConfig.tools?.web?.fetch;
-  const hasSearchKey = Boolean(existingSearch?.apiKey);
+  const hasSerperKey = Boolean(existingSearch?.serper?.apiKey);
 
   note(
     [
       "Web search lets your agent look things up online using the `web_search` tool.",
-      "It requires a Brave Search API key (you can store it in the config or set BRAVE_API_KEY in the Gateway environment).",
+      "It requires a Serper API key (you can store it in the config or set SERPER_API_KEY in the Gateway environment).",
+      "Get your API key at https://serper.dev/",
       "Docs: https://docs.openclaw.ai/tools/web",
     ].join("\n"),
     "Web search",
@@ -107,8 +108,8 @@ async function promptWebToolsConfig(
 
   const enableSearch = guardCancel(
     await confirm({
-      message: "Enable web_search (Brave Search)?",
-      initialValue: existingSearch?.enabled ?? hasSearchKey,
+      message: "Enable web_search (Serper / Google Search)?",
+      initialValue: existingSearch?.enabled ?? hasSerperKey,
     }),
     runtime,
   );
@@ -121,21 +122,24 @@ async function promptWebToolsConfig(
   if (enableSearch) {
     const keyInput = guardCancel(
       await text({
-        message: hasSearchKey
-          ? "Brave Search API key (leave blank to keep current or use BRAVE_API_KEY)"
-          : "Brave Search API key (paste it here; leave blank to use BRAVE_API_KEY)",
-        placeholder: hasSearchKey ? "Leave blank to keep current" : "BSA...",
+        message: hasSerperKey
+          ? "Serper API key (leave blank to keep current or use SERPER_API_KEY)"
+          : "Serper API key (paste it here; leave blank to use SERPER_API_KEY)",
+        placeholder: hasSerperKey ? "Leave blank to keep current" : "Your Serper API key",
       }),
       runtime,
     );
     const key = String(keyInput ?? "").trim();
     if (key) {
-      nextSearch = { ...nextSearch, apiKey: key };
-    } else if (!hasSearchKey) {
+      nextSearch = {
+        ...nextSearch,
+        serper: { ...nextSearch.serper, apiKey: key },
+      } as typeof nextSearch;
+    } else if (!hasSerperKey) {
       note(
         [
           "No key stored yet, so web_search will stay unavailable.",
-          "Store a key here or set BRAVE_API_KEY in the Gateway environment.",
+          "Store a key here or set SERPER_API_KEY in the Gateway environment.",
           "Docs: https://docs.openclaw.ai/tools/web",
         ].join("\n"),
         "Web search",

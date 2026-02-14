@@ -17,10 +17,11 @@ import {
   writeCache,
 } from "./web-shared.js";
 
-const SEARCH_PROVIDERS = ["brave", "perplexity"] as const;
+const SEARCH_PROVIDERS = ["serper", "brave", "perplexity"] as const;
 const DEFAULT_SEARCH_COUNT = 5;
 const MAX_SEARCH_COUNT = 10;
 
+const SERPER_SEARCH_ENDPOINT = "https://google.serper.dev/search";
 const BRAVE_SEARCH_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
 const DEFAULT_PERPLEXITY_BASE_URL = "https://openrouter.ai/api/v1";
 const PERPLEXITY_DIRECT_BASE_URL = "https://api.perplexity.ai";
@@ -103,6 +104,21 @@ type PerplexitySearchResponse = {
 
 type PerplexityBaseUrlHint = "direct" | "openrouter";
 
+type SerperSearchResult = {
+  title?: string;
+  link?: string;
+  snippet?: string;
+  date?: string;
+};
+
+type SerperSearchResponse = {
+  organic?: SerperSearchResult[];
+};
+
+type SerperConfig = {
+  apiKey?: string;
+};
+
 function resolveSearchConfig(cfg?: OpenClawConfig): WebSearchConfig {
   const search = cfg?.tools?.web?.search;
   if (!search || typeof search !== "object") {
@@ -128,7 +144,34 @@ function resolveSearchApiKey(search?: WebSearchConfig): string | undefined {
   return fromConfig || fromEnv || undefined;
 }
 
+function resolveSerperConfig(search?: WebSearchConfig): SerperConfig {
+  if (!search || typeof search !== "object") {
+    return {};
+  }
+  const serper = "serper" in search ? search.serper : undefined;
+  if (!serper || typeof serper !== "object") {
+    return {};
+  }
+  return serper as SerperConfig;
+}
+
+function resolveSerperApiKey(serper?: SerperConfig): string | undefined {
+  const fromConfig = normalizeApiKey(serper?.apiKey);
+  if (fromConfig) {
+    return fromConfig;
+  }
+  const fromEnv = normalizeApiKey(process.env.SERPER_API_KEY);
+  return fromEnv || undefined;
+}
+
 function missingSearchKeyPayload(provider: (typeof SEARCH_PROVIDERS)[number]) {
+  if (provider === "serper") {
+    return {
+      error: "missing_serper_api_key",
+      message: `web_search needs a Serper API key. Run \`${formatCliCommand("openclaw configure --section web")}\` to store it, or set SERPER_API_KEY in the Gateway environment.`,
+      docs: "https://docs.openclaw.ai/tools/web",
+    };
+  }
   if (provider === "perplexity") {
     return {
       error: "missing_perplexity_api_key",
@@ -149,13 +192,16 @@ function resolveSearchProvider(search?: WebSearchConfig): (typeof SEARCH_PROVIDE
     search && "provider" in search && typeof search.provider === "string"
       ? search.provider.trim().toLowerCase()
       : "";
+  if (raw === "serper") {
+    return "serper";
+  }
   if (raw === "perplexity") {
     return "perplexity";
   }
   if (raw === "brave") {
     return "brave";
   }
-  return "brave";
+  return "serper";
 }
 
 function resolvePerplexityConfig(search?: WebSearchConfig): PerplexityConfig {
@@ -350,6 +396,64 @@ async function runPerplexitySearch(params: {
   return { content, citations };
 }
 
+async function runSerperSearch(params: {
+  query: string;
+  count: number;
+  apiKey: string;
+  timeoutSeconds: number;
+  country?: string;
+  search_lang?: string;
+}): Promise<{
+  results: Array<{
+    title: string;
+    url: string;
+    description: string;
+    published?: string;
+    siteName?: string;
+  }>;
+}> {
+  const body: Record<string, unknown> = { q: params.query, num: params.count };
+  if (params.country) {
+    body.gl = params.country.toLowerCase();
+  }
+  if (params.search_lang) {
+    body.hl = params.search_lang;
+  }
+
+  const res = await fetch(SERPER_SEARCH_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "X-API-KEY": params.apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    signal: withTimeout(undefined, params.timeoutSeconds * 1000),
+  });
+
+  if (!res.ok) {
+    const detail = await readResponseText(res);
+    throw new Error(`Serper API error (${res.status}): ${detail || res.statusText}`);
+  }
+
+  const data = (await res.json()) as SerperSearchResponse;
+  const organic = Array.isArray(data.organic) ? data.organic : [];
+  const mapped = organic.map((entry) => {
+    const title = entry.title ?? "";
+    const url = entry.link ?? "";
+    const description = entry.snippet ?? "";
+    const rawSiteName = resolveSiteName(url);
+    return {
+      title: title ? wrapWebContent(title, "web_search") : "",
+      url, // Keep raw for tool chaining
+      description: description ? wrapWebContent(description, "web_search") : "",
+      published: entry.date || undefined,
+      siteName: rawSiteName || undefined,
+    };
+  });
+
+  return { results: mapped };
+}
+
 async function runWebSearch(params: {
   query: string;
   count: number;
@@ -375,6 +479,27 @@ async function runWebSearch(params: {
   }
 
   const start = Date.now();
+
+  if (params.provider === "serper") {
+    const { results } = await runSerperSearch({
+      query: params.query,
+      count: params.count,
+      apiKey: params.apiKey,
+      timeoutSeconds: params.timeoutSeconds,
+      country: params.country,
+      search_lang: params.search_lang,
+    });
+
+    const payload = {
+      query: params.query,
+      provider: params.provider,
+      count: results.length,
+      tookMs: Date.now() - start,
+      results,
+    };
+    writeCache(SEARCH_CACHE, cacheKey, payload, params.cacheTtlMs);
+    return payload;
+  }
 
   if (params.provider === "perplexity") {
     const { content, citations } = await runPerplexitySearch({
@@ -469,11 +594,14 @@ export function createWebSearchTool(options?: {
 
   const provider = resolveSearchProvider(search);
   const perplexityConfig = resolvePerplexityConfig(search);
+  const serperConfig = resolveSerperConfig(search);
 
   const description =
-    provider === "perplexity"
-      ? "Search the web using Perplexity Sonar (direct or via OpenRouter). Returns AI-synthesized answers with citations from real-time web search."
-      : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
+    provider === "serper"
+      ? "Search the web using Serper (Google Search). Returns titles, URLs, and snippets for fast research. Supports region-specific and localized search via country and language parameters."
+      : provider === "perplexity"
+        ? "Search the web using Perplexity Sonar (direct or via OpenRouter). Returns AI-synthesized answers with citations from real-time web search."
+        : "Search the web using Brave Search API. Supports region-specific and localized search via country and language parameters. Returns titles, URLs, and snippets for fast research.";
 
   return {
     label: "Web Search",
@@ -484,7 +612,11 @@ export function createWebSearchTool(options?: {
       const perplexityAuth =
         provider === "perplexity" ? resolvePerplexityApiKey(perplexityConfig) : undefined;
       const apiKey =
-        provider === "perplexity" ? perplexityAuth?.apiKey : resolveSearchApiKey(search);
+        provider === "serper"
+          ? resolveSerperApiKey(serperConfig)
+          : provider === "perplexity"
+            ? perplexityAuth?.apiKey
+            : resolveSearchApiKey(search);
 
       if (!apiKey) {
         return jsonResult(missingSearchKeyPayload(provider));

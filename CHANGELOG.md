@@ -2,6 +2,86 @@
 
 Docs: https://docs.openclaw.ai
 
+## Fork Sync Release — 2026.2.20 (Upstream Merge)
+
+Synced with upstream `openclaw/openclaw` — merged **3,688 commits** spanning versions **v2026.2.9** through **v2026.2.19** (and the unreleased v2026.2.20 head).
+
+### Upstream Highlights
+
+#### New Features
+
+- **Grok (xAI) web search provider**: added as a third-party search backend alongside Brave and Perplexity.
+- **Anthropic 1M context beta**: support for Anthropic's extended context window via beta header.
+- **Anthropic Sonnet 4.6**: model support for `claude-sonnet-4-6`.
+- **iOS/Watch**: Apple Watch companion MVP with inbox UI, notification relay, and gateway command surfaces.
+- **iOS/Gateway**: APNs push registration, background wake reconnect, and push-test pipeline.
+- **Telegram enhancements**: forum topic creation, channel_post support, spoiler tags, blockquote rendering, video note support, message reactions, and native menu /compact command.
+- **Slack improvements**: native text streaming, thread-ownership, recipient_team_id passing, and draft streaming.
+- **Discord updates**: configurable presence, voice message support, silent message support, and gateway 4014 handling.
+- **Ollama native provider**: added `/api/chat` provider for streaming + tool calling.
+- **LiteLLM provider**: first-class integration.
+- **Together AI provider**: added support.
+- **Hugging Face Inference provider**: first-class support with direct injection refactor.
+- **Z.AI / GLM support**: auto-detect endpoint, GLM-4.6V image understanding, GLM-5 model support.
+- **IRC channel**: first-class channel support.
+- **LinQ channel**: interactive onboarding adapter with read receipts and typing indicators.
+- **Matrix**: multi-account and thread session isolation.
+- **Mattermost**: emoji reactions support.
+- **Feishu**: streaming card support (Card Kit API), bitable tools.
+- **Auto-reply**: model fallback lifecycle visibility in status, verbose logs, and WebUI.
+- **Memory**: opt-in temporal decay for hybrid search, MMR re-ranking for search diversity.
+- **Security audit**: gateway HTTP no-auth exposure detection, sandbox env sanitization, ACP prompt size guardrails, plugin/hook path containment, auth rate-limiting & brute-force protection.
+- **Skills**: compact skill paths, improved routing descriptions, `.agents/skills/` cross-agent discovery.
+- **Gateway**: channel health monitor with auto-restart, paired-device hygiene flows.
+- **UI**: RTL support for Hebrew/Arabic, update warning banner, usage over time dual-handle range chart, i18n infrastructure (en/zh-CN/zh-TW/pt-BR).
+- **CLI**: `--localTime` for logs, `/export-session` command, `/subagents spawn` command.
+- **Agent streaming**: thinking events, tool_stream for real-time tool call streaming.
+- **Context management**: post-compaction workspace context injection, configurable tool loop detection.
+- **Cron**: default stagger controls for scheduled jobs.
+
+#### Security Fixes
+
+- Bump hono for timing-safe auth hardening (`GHSA-gq3j-xvxp-8hrf`).
+- Pin Docker base images to SHA256 digests.
+- Strip sensitive headers on cross-origin redirects.
+- Enforce 2MB prompt size limit to prevent ACP DoS.
+- Harden canvas auth with session capabilities.
+- Validate plugin and hook path containment.
+
+#### Bug Fixes
+
+- Gateway/Pairing: tolerate legacy paired metadata in ws upgrade checks.
+- Provider/HTTP: treat HTTP 503 as failover-eligible.
+- iOS: stabilize background wake/reconnect, chat session key isolation, auto-resync after reconnect gaps.
+- Auto-reply: restore prompt cache stability, delay onAgentRunStart until real activity.
+- Slack: recipient_team_id streaming, block streaming toggle.
+- Discord: gateway 4014 close handling.
+- CLI/Onboarding: Anthropic-compatible custom provider URL normalization.
+- Daemon: harden Windows schtasks quoting, restart after service refresh.
+
+#### Infrastructure
+
+- **905 fixes**, **846 refactors**, **541 test additions**, **333 performance improvements**.
+- Security audit module split (sync/async).
+- Code-size CI gates, actionlint hardening.
+- Vitest coverage threshold enforcement (70%).
+
+### Fork-Specific Changes (Preserved)
+
+- **Serper (Google Search) as default web_search provider**: integrated with upstream's latest web-search architecture (now alongside brave, perplexity, and grok). Default provider changed from brave to serper.
+- **Skills**: `insurance-qa` (exam study assistance), `paper-reader` (academic paper analysis).
+- **Ops scripts**: build, dev, logs, reload, restart, start, status, stop scripts.
+- **UI i18n**: Chinese/English translation infrastructure (i18n files preserved; UI template bindings need reapplication on new upstream UI code).
+- **UI CSS**: config form subsection icon fixes.
+
+### Conflict Resolution Notes
+
+- **UI view files** (13 files): accepted upstream versions. Fork's i18n `t()` bindings in view templates need to be reapplied on the updated upstream templates. The i18n infrastructure files (`ui/src/ui/i18n/`) are preserved.
+- **web-search.ts**: accepted upstream (which added Grok provider), then re-integrated Serper provider support with types, config resolution, API call, caching, and tool description.
+- **Config files** (schema.help.ts, types.tools.ts, zod-schema.agent-runtime.ts): accepted upstream, then added Serper provider option and config schema.
+- **audit-extra.sync.ts**: added Serper API key detection to the security audit.
+- **web-tools.enabled-defaults.test.ts**: accepted upstream deletion (test was consolidated).
+
 ## 2026.2.20 (Unreleased)
 
 ### Changes

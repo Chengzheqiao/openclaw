@@ -1,5 +1,7 @@
 # Changelog
 
+English | [中文](./CHANGELOG.zh-CN.md)
+
 Docs: https://docs.openclaw.ai
 
 ## Fork Sync Release — 2026.2.20 (Upstream Merge)

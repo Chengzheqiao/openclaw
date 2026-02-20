@@ -1,6 +1,6 @@
 import { html, nothing } from "lit";
-import { icons } from "../icons.ts";
 import type { ConfigUiHints } from "../types.ts";
+import { icons } from "../icons.ts";
 import { renderNode } from "./config-form.node.ts";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared.ts";
 
@@ -237,6 +237,10 @@ const sectionIcons = {
 };
 
 // Section metadata
+export function getSectionMeta(key: string): { label: string; description: string } | undefined {
+  return SECTION_META[key];
+}
+
 export const SECTION_META: Record<string, { label: string; description: string }> = {
   env: {
     label: "Environment Variables",

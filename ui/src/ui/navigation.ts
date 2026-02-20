@@ -1,19 +1,15 @@
+import { t } from "../i18n/index.ts";
 import type { IconName } from "./icons.js";
-import { t } from "./i18n/index.ts";
 
 export const TAB_GROUPS = [
-  { labelKey: "tabGroupChat" as const, tabs: ["chat"] },
+  { label: "chat", tabs: ["chat"] },
   {
-    labelKey: "tabGroupControl" as const,
+    label: "control",
     tabs: ["overview", "channels", "instances", "sessions", "usage", "cron"],
   },
-  { labelKey: "tabGroupAgent" as const, tabs: ["agents", "skills", "nodes"] },
-  { labelKey: "tabGroupSettings" as const, tabs: ["config", "debug", "logs"] },
+  { label: "agent", tabs: ["agents", "skills", "nodes"] },
+  { label: "settings", tabs: ["config", "debug", "logs"] },
 ] as const;
-
-export function getTabGroupLabel(labelKey: string): string {
-  return t(labelKey as keyof ReturnType<typeof t>) as string;
-}
 
 export type Tab =
   | "agents"
@@ -161,67 +157,9 @@ export function iconForTab(tab: Tab): IconName {
 }
 
 export function titleForTab(tab: Tab) {
-  switch (tab) {
-    case "agents":
-      return t("tabAgents");
-    case "overview":
-      return t("tabOverview");
-    case "channels":
-      return t("tabChannels");
-    case "instances":
-      return t("tabInstances");
-    case "sessions":
-      return t("tabSessions");
-    case "usage":
-      return t("tabUsage");
-    case "cron":
-      return t("tabCron");
-    case "skills":
-      return t("tabSkills");
-    case "nodes":
-      return t("tabNodes");
-    case "chat":
-      return t("tabChat");
-    case "config":
-      return t("tabConfig");
-    case "debug":
-      return t("tabDebug");
-    case "logs":
-      return t("tabLogs");
-    default:
-      return t("tabGroupControl");
-  }
+  return t(`tabs.${tab}`);
 }
 
 export function subtitleForTab(tab: Tab) {
-  switch (tab) {
-    case "agents":
-      return t("tabAgentsDesc");
-    case "overview":
-      return t("tabOverviewDesc");
-    case "channels":
-      return t("tabChannelsDesc");
-    case "instances":
-      return t("tabInstancesDesc");
-    case "sessions":
-      return t("tabSessionsDesc");
-    case "usage":
-      return t("tabUsageDesc");
-    case "cron":
-      return t("tabCronDesc");
-    case "skills":
-      return t("tabSkillsDesc");
-    case "nodes":
-      return t("tabNodesDesc");
-    case "chat":
-      return t("tabChatDesc");
-    case "config":
-      return t("tabConfigDesc");
-    case "debug":
-      return t("tabDebugDesc");
-    case "logs":
-      return t("tabLogsDesc");
-    default:
-      return "";
-  }
+  return t(`subtitles.${tab}`);
 }

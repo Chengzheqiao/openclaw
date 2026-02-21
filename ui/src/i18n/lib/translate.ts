@@ -1,5 +1,5 @@
-import { en } from "../locales/en.ts";
 import type { Locale, TranslationMap } from "./types.ts";
+import { en } from "../locales/en.ts";
 
 type Subscriber = (locale: Locale) => void;
 
@@ -16,6 +16,10 @@ class I18nManager {
 
   constructor() {
     this.loadLocale();
+    // Eagerly load translations for the detected non-English locale
+    if (this.locale !== "en") {
+      void this.setLocale(this.locale);
+    }
   }
 
   private loadLocale() {
@@ -23,13 +27,19 @@ class I18nManager {
     if (isSupportedLocale(saved)) {
       this.locale = saved;
     } else {
-      const navLang = navigator.language;
-      if (navLang.startsWith("zh")) {
-        this.locale = navLang === "zh-TW" || navLang === "zh-HK" ? "zh-TW" : "zh-CN";
-      } else if (navLang.startsWith("pt")) {
-        this.locale = "pt-BR";
+      // Also check the old i18n storage key for migration
+      const oldSaved = localStorage.getItem("openclaw_locale");
+      if (oldSaved === "zh") {
+        this.locale = "zh-CN";
       } else {
-        this.locale = "en";
+        const navLang = navigator.language;
+        if (navLang.startsWith("zh")) {
+          this.locale = navLang === "zh-TW" || navLang === "zh-HK" ? "zh-TW" : "zh-CN";
+        } else if (navLang.startsWith("pt")) {
+          this.locale = "pt-BR";
+        } else {
+          this.locale = "en";
+        }
       }
     }
   }
@@ -39,7 +49,7 @@ class I18nManager {
   }
 
   public async setLocale(locale: Locale) {
-    if (this.locale === locale) {
+    if (this.locale === locale && this.translations[locale]) {
       return;
     }
 

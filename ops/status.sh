@@ -3,11 +3,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/_common.sh"
 
-cd "$PROJECT_DIR"
-
-PORT="${OPENCLAW_PORT:-18789}"
+ops::ensure_runtime_path
+ops::cd_project
 
 echo "========================================="
 echo "  OpenClaw 状态"
@@ -16,13 +15,14 @@ echo ""
 
 # 检查端口
 echo "[Gateway 进程]"
-if ss -ltnp 2>/dev/null | grep -q ":$PORT"; then
+if ops::is_running "$OPS_PORT"; then
     echo "  状态: 运行中"
-    echo "  端口: $PORT"
-    PID=$(ss -ltnp 2>/dev/null | grep ":$PORT" | grep -oP 'pid=\K\d+' | head -1)
+    echo "  端口: $OPS_PORT"
+    PID="$(ops::first_listener_pid "$OPS_PORT")"
     if [[ -n "$PID" ]]; then
         echo "  PID:  $PID"
     fi
+    echo "  地址: $(ops::display_url)"
 else
     echo "  状态: 未运行"
 fi

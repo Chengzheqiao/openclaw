@@ -6,6 +6,7 @@
 
 ```
 ops/
+├── _common.sh    # 跨平台公共 helper
 ├── start.sh     # 启动 Gateway
 ├── stop.sh      # 停止 Gateway
 ├── restart.sh   # 重启 Gateway
@@ -14,6 +15,14 @@ ops/
 ├── status.sh    # 查看状态
 ├── logs.sh      # 查看日志
 ├── dev.sh       # 开发模式（热重载）
+├── start-macos.sh
+├── stop-macos.sh
+├── status-macos.sh
+├── restart-macos.sh
+├── reload-macos.sh
+├── build-macos.sh
+├── logs-macos.sh
+├── dev-macos.sh
 └── README.md    # 本文档
 ```
 
@@ -53,11 +62,26 @@ pnpm install
 ./ops/logs.sh -n 100    # 最后 100 行
 ```
 
+### macOS 入口
+
+macOS 也可以直接使用通用脚本；它们现在会自动处理平台差异。
+
+如果你希望显式使用 macOS 脚本入口，也可以运行：
+
+```bash
+./ops/start-macos.sh
+./ops/stop-macos.sh
+./ops/status-macos.sh
+./ops/restart-macos.sh
+./ops/reload-macos.sh
+```
+
 ## 脚本详解
 
 ### start.sh - 启动 Gateway
 
 启动 OpenClaw Gateway 服务，默认监听 `127.0.0.1:18789`。
+现已同时兼容 Linux 和 macOS。
 
 ```bash
 # 默认启动
@@ -78,6 +102,7 @@ OPENCLAW_BIND=0.0.0.0 ./ops/start.sh
 ### stop.sh - 停止 Gateway
 
 停止正在运行的 Gateway 服务。
+现已同时兼容 Linux 和 macOS。
 
 ```bash
 ./ops/stop.sh
@@ -119,6 +144,7 @@ BUILD_UI=0 ./ops/build.sh
 ### status.sh - 查看状态
 
 显示 Gateway 运行状态、健康检查和通道状态。
+现已同时兼容 Linux 和 macOS。
 
 ```bash
 ./ops/status.sh

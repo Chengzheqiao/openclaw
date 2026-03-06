@@ -3,9 +3,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/_common.sh"
 
-cd "$PROJECT_DIR"
+ops::ensure_runtime_path
+ops::cd_project
 
 echo "========================================="
 echo "  OpenClaw 开发模式 (热重载)"

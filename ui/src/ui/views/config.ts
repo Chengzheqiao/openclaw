@@ -1,8 +1,9 @@
 import { html, nothing } from "lit";
 import type { ConfigUiHints } from "../types.ts";
-import { t, getLocale, setLocale, type Locale } from "../i18n/index.ts";
+import { t, getLocale, setLocale, type I18nStrings, type Locale } from "../i18n/index.ts";
 import { hintForPath, humanize, schemaType, type JsonSchema } from "./config-form.shared.ts";
 import { analyzeConfigSchema, renderConfigForm, getSectionMeta } from "./config-form.ts";
+import { getTagFilters, replaceTagFilters } from "./config-search.ts";
 
 export type ConfigProps = {
   raw: string;
@@ -34,6 +35,24 @@ export type ConfigProps = {
   onApply: () => void;
   onUpdate: () => void;
 };
+
+const TAG_SEARCH_PRESETS = [
+  "security",
+  "auth",
+  "network",
+  "access",
+  "privacy",
+  "observability",
+  "performance",
+  "reliability",
+  "storage",
+  "models",
+  "media",
+  "automation",
+  "channels",
+  "tools",
+  "advanced",
+] as const;
 
 // SVG Icons for sidebar (Lucide-style)
 const sidebarIcons = {
@@ -264,7 +283,7 @@ const sidebarIcons = {
 };
 
 // Section definitions - labels are resolved via i18n
-const SECTIONS: Array<{ key: string; labelKey: keyof ReturnType<typeof t> }> = [
+const SECTIONS: Array<{ key: string; labelKey: keyof I18nStrings }> = [
   { key: "env", labelKey: "sectionEnv" },
   { key: "update", labelKey: "sectionUpdate" },
   { key: "agents", labelKey: "sectionAgents" },
@@ -447,6 +466,7 @@ export function renderConfig(props: ConfigProps) {
     hasChanges &&
     (props.formMode === "raw" ? true : canSaveForm);
   const canUpdate = props.connected && !props.applying && !props.updating;
+  const selectedTags = new Set(getTagFilters(props.searchQuery));
 
   return html`
     <div class="config-layout">
@@ -464,35 +484,91 @@ export function renderConfig(props: ConfigProps) {
 
         <!-- Search -->
         <div class="config-search">
-          <svg
-            class="config-search__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="M21 21l-4.35-4.35"></path>
-          </svg>
-          <input
-            type="text"
-            class="config-search__input"
-            placeholder=${t("searchSettings")}
-            .value=${props.searchQuery}
-            @input=${(e: Event) => props.onSearchChange((e.target as HTMLInputElement).value)}
-          />
-          ${
-            props.searchQuery
-              ? html`
-                <button
-                  class="config-search__clear"
-                  @click=${() => props.onSearchChange("")}
-                >
-                  ×
-                </button>
-              `
-              : nothing
-          }
+          <div class="config-search__input-row">
+            <svg
+              class="config-search__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="M21 21l-4.35-4.35"></path>
+            </svg>
+            <input
+              type="text"
+              class="config-search__input"
+              placeholder=${t("searchSettings")}
+              .value=${props.searchQuery}
+              @input=${(e: Event) => props.onSearchChange((e.target as HTMLInputElement).value)}
+            />
+            ${
+              props.searchQuery
+                ? html`
+                  <button
+                    class="config-search__clear"
+                    @click=${() => props.onSearchChange("")}
+                  >
+                    ×
+                  </button>
+                `
+                : nothing
+            }
+          </div>
+          <div class="config-search__hint">
+            <span class="config-search__hint-label" id="config-tag-filter-label">Tag filters:</span>
+            <details class="config-search__tag-picker">
+              <summary class="config-search__tag-trigger" aria-labelledby="config-tag-filter-label">
+                ${
+                  selectedTags.size === 0
+                    ? html`
+                        <span class="config-search__tag-placeholder">Add tags</span>
+                      `
+                    : html`
+                        <div class="config-search__tag-chips">
+                          ${Array.from(selectedTags)
+                            .slice(0, 2)
+                            .map(
+                              (tag) =>
+                                html`<span class="config-search__tag-chip">tag:${tag}</span>`,
+                            )}
+                          ${
+                            selectedTags.size > 2
+                              ? html`
+                                  <span class="config-search__tag-chip config-search__tag-chip--count"
+                                    >+${selectedTags.size - 2}</span
+                                  >
+                                `
+                              : nothing
+                          }
+                        </div>
+                      `
+                }
+                <span class="config-search__tag-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="config-search__tag-menu">
+                ${TAG_SEARCH_PRESETS.map((tag) => {
+                  const active = selectedTags.has(tag);
+                  return html`
+                    <button
+                      type="button"
+                      class="config-search__tag-option ${active ? "active" : ""}"
+                      data-tag="${tag}"
+                      aria-pressed=${active ? "true" : "false"}
+                      @click=${() => {
+                        const nextTags = active
+                          ? Array.from(selectedTags).filter((value) => value !== tag)
+                          : [...selectedTags, tag];
+                        props.onSearchChange(replaceTagFilters(props.searchQuery, nextTags));
+                      }}
+                    >
+                      tag:${tag}
+                    </button>
+                  `;
+                })}
+              </div>
+            </details>
+          </div>
         </div>
 
         <!-- Section nav -->

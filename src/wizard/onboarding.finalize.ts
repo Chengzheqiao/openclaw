@@ -10,6 +10,7 @@ import {
   DEFAULT_GATEWAY_DAEMON_RUNTIME,
   GATEWAY_DAEMON_RUNTIME_OPTIONS,
 } from "../commands/daemon-runtime.js";
+import { resolveGatewayInstallToken } from "../commands/gateway-install-token.js";
 import { formatHealthCheckFailure } from "../commands/health-format.js";
 import { healthCommand } from "../commands/health.js";
 import {
@@ -30,6 +31,7 @@ import { restoreTerminalState } from "../terminal/restore.js";
 import { runTui } from "../tui/tui.js";
 import { resolveUserPath } from "../utils.js";
 import { setupOnboardingShellCompletion } from "./onboarding.completion.js";
+import { resolveOnboardingSecretInputString } from "./onboarding.secret-input.js";
 import type { GatewayWizardSettings, WizardFlow } from "./onboarding.types.js";
 import type { WizardPrompter } from "./prompts.js";
 
@@ -164,23 +166,40 @@ export async function finalizeOnboardingWizard(
       let installError: string | null = null;
       try {
         progress.update("Preparing Gateway service…");
-        const { programArguments, workingDirectory, environment } = await buildGatewayInstallPlan({
-          env: process.env,
-          port: settings.port,
-          token: settings.gatewayToken,
-          runtime: daemonRuntime,
-          warn: (message, title) => prompter.note(message, title),
+        const tokenResolution = await resolveGatewayInstallToken({
           config: nextConfig,
-        });
-
-        progress.update("Installing Gateway service…");
-        await service.install({
           env: process.env,
-          stdout: process.stdout,
-          programArguments,
-          workingDirectory,
-          environment,
         });
+        for (const warning of tokenResolution.warnings) {
+          await prompter.note(warning, "Gateway service");
+        }
+        if (tokenResolution.unavailableReason) {
+          installError = [
+            "Gateway install blocked:",
+            tokenResolution.unavailableReason,
+            "Fix gateway auth config/token input and rerun onboarding.",
+          ].join(" ");
+        } else {
+          const { programArguments, workingDirectory, environment } = await buildGatewayInstallPlan(
+            {
+              env: process.env,
+              port: settings.port,
+              token: tokenResolution.token,
+              runtime: daemonRuntime,
+              warn: (message, title) => prompter.note(message, title),
+              config: nextConfig,
+            },
+          );
+
+          progress.update("Installing Gateway service…");
+          await service.install({
+            env: process.env,
+            stdout: process.stdout,
+            programArguments,
+            workingDirectory,
+            environment,
+          });
+        }
       } catch (err) {
         installError = err instanceof Error ? err.message : String(err);
       } finally {
@@ -254,10 +273,31 @@ export async function finalizeOnboardingWizard(
     settings.authMode === "token" && settings.gatewayToken
       ? `${links.httpUrl}#token=${encodeURIComponent(settings.gatewayToken)}`
       : links.httpUrl;
+  let resolvedGatewayPassword = "";
+  if (settings.authMode === "password") {
+    try {
+      resolvedGatewayPassword =
+        (await resolveOnboardingSecretInputString({
+          config: nextConfig,
+          value: nextConfig.gateway?.auth?.password,
+          path: "gateway.auth.password",
+          env: process.env,
+        })) ?? "";
+    } catch (error) {
+      await prompter.note(
+        [
+          "Could not resolve gateway.auth.password SecretRef for onboarding auth.",
+          error instanceof Error ? error.message : String(error),
+        ].join("\n"),
+        "Gateway auth",
+      );
+    }
+  }
+
   const gatewayProbe = await probeGatewayReachable({
     url: links.wsUrl,
     token: settings.authMode === "token" ? settings.gatewayToken : undefined,
-    password: settings.authMode === "password" ? nextConfig.gateway?.auth?.password : "",
+    password: settings.authMode === "password" ? resolvedGatewayPassword : "",
   });
   const gatewayStatusLine = gatewayProbe.ok
     ? "Gateway: reachable"
@@ -333,7 +373,7 @@ export async function finalizeOnboardingWizard(
       await runTui({
         url: links.wsUrl,
         token: settings.authMode === "token" ? settings.gatewayToken : undefined,
-        password: settings.authMode === "password" ? nextConfig.gateway?.auth?.password : "",
+        password: settings.authMode === "password" ? resolvedGatewayPassword : "",
         // Safety: onboarding TUI should not auto-deliver to lastProvider/lastTo.
         deliver: false,
         message: hasBootstrap ? "Wake up, my friend!" : undefined,
@@ -432,30 +472,87 @@ export async function finalizeOnboardingWizard(
     );
   }
 
-  const webSearchKey = (nextConfig.tools?.web?.search?.serper?.apiKey ?? "").trim();
-  const webSearchEnv = (process.env.SERPER_API_KEY ?? "").trim();
+  const webSearchProvider = nextConfig.tools?.web?.search?.provider ?? "serper";
+  const webSearchLabel =
+    webSearchProvider === "perplexity"
+      ? "Perplexity Search"
+      : webSearchProvider === "brave"
+        ? "Brave Search"
+        : webSearchProvider === "grok"
+          ? "Grok"
+          : webSearchProvider === "gemini"
+            ? "Gemini"
+            : webSearchProvider === "kimi"
+              ? "Kimi"
+              : "Serper (Google Search)";
+  const webSearchConfigPath =
+    webSearchProvider === "perplexity"
+      ? "tools.web.search.perplexity.apiKey"
+      : webSearchProvider === "serper"
+        ? "tools.web.search.serper.apiKey"
+        : webSearchProvider === "grok"
+          ? "tools.web.search.grok.apiKey"
+          : webSearchProvider === "gemini"
+            ? "tools.web.search.gemini.apiKey"
+            : webSearchProvider === "kimi"
+              ? "tools.web.search.kimi.apiKey"
+              : "tools.web.search.apiKey";
+  const webSearchEnvName =
+    webSearchProvider === "perplexity"
+      ? "PERPLEXITY_API_KEY"
+      : webSearchProvider === "serper"
+        ? "SERPER_API_KEY"
+        : webSearchProvider === "grok"
+          ? "XAI_API_KEY"
+          : webSearchProvider === "gemini"
+            ? "GEMINI_API_KEY"
+            : webSearchProvider === "kimi"
+              ? "KIMI_API_KEY / MOONSHOT_API_KEY"
+              : "BRAVE_API_KEY";
+  const webSearchKey =
+    webSearchProvider === "perplexity"
+      ? (nextConfig.tools?.web?.search?.perplexity?.apiKey ?? "").trim()
+      : webSearchProvider === "serper"
+        ? (nextConfig.tools?.web?.search?.serper?.apiKey ?? "").trim()
+        : webSearchProvider === "grok"
+          ? (nextConfig.tools?.web?.search?.grok?.apiKey ?? "").trim()
+          : webSearchProvider === "gemini"
+            ? (nextConfig.tools?.web?.search?.gemini?.apiKey ?? "").trim()
+            : webSearchProvider === "kimi"
+              ? (nextConfig.tools?.web?.search?.kimi?.apiKey ?? "").trim()
+              : (nextConfig.tools?.web?.search?.apiKey ?? "").trim();
+  const webSearchEnv =
+    webSearchProvider === "perplexity"
+      ? (process.env.PERPLEXITY_API_KEY ?? process.env.OPENROUTER_API_KEY ?? "").trim()
+      : webSearchProvider === "serper"
+        ? (process.env.SERPER_API_KEY ?? "").trim()
+        : webSearchProvider === "grok"
+          ? (process.env.XAI_API_KEY ?? "").trim()
+          : webSearchProvider === "gemini"
+            ? (process.env.GEMINI_API_KEY ?? "").trim()
+            : webSearchProvider === "kimi"
+              ? (process.env.KIMI_API_KEY ?? process.env.MOONSHOT_API_KEY ?? "").trim()
+              : (process.env.BRAVE_API_KEY ?? "").trim();
   const hasWebSearchKey = Boolean(webSearchKey || webSearchEnv);
   await prompter.note(
     hasWebSearchKey
       ? [
           "Web search is enabled, so your agent can look things up online when needed.",
           "",
+          `Provider: ${webSearchLabel}`,
           webSearchKey
-            ? "API key: stored in config (tools.web.search.serper.apiKey)."
-            : "API key: provided via SERPER_API_KEY env var (Gateway environment).",
+            ? `API key: stored in config (${webSearchConfigPath}).`
+            : `API key: provided via ${webSearchEnvName} env var (Gateway environment).`,
           "Docs: https://docs.openclaw.ai/tools/web",
         ].join("\n")
       : [
-          "If you want your agent to be able to search the web, you'll need an API key.",
-          "",
-          "OpenClaw uses Serper (Google Search) for the `web_search` tool. Without a Serper API key, web search won't work.",
+          "To enable web search, your agent will need an API key for the configured provider.",
           "",
           "Set it up interactively:",
           `- Run: ${formatCliCommand("openclaw configure --section web")}`,
-          "- Enable web_search and paste your Serper API key",
+          "- Choose a provider and paste your API key",
           "",
-          "Alternative: set SERPER_API_KEY in the Gateway environment (no config changes).",
-          "Get your API key at https://serper.dev/",
+          `Alternative: set ${webSearchEnvName} in the Gateway environment (no config changes).`,
           "Docs: https://docs.openclaw.ai/tools/web",
         ].join("\n"),
     "Web search (optional)",

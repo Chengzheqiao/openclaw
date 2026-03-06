@@ -477,4 +477,14 @@ export const en = {
   goBack: "Go back",
 } as const;
 
-export type I18nStrings = typeof en;
+type TranslationShape<T> = {
+  [K in keyof T]: T[K] extends (...args: infer Args) => infer Result
+    ? (...args: Args) => Result
+    : T[K] extends string
+      ? string
+      : T[K] extends object
+        ? TranslationShape<T[K]>
+        : T[K];
+};
+
+export type I18nStrings = TranslationShape<typeof en>;

@@ -8,4 +8,4 @@ echo "[INFO] 重启 OpenClaw Gateway..."
 
 "$SCRIPT_DIR/stop.sh"
 sleep 2
-"$SCRIPT_DIR/start.sh"
+"$SCRIPT_DIR/start.sh" "$@"

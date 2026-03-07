@@ -25,7 +25,7 @@ echo "[2/3] 重新构建..."
 # 3. 启动 Gateway
 echo ""
 echo "[3/3] 启动 Gateway..."
-"$SCRIPT_DIR/start.sh"
+"$SCRIPT_DIR/start.sh" "$@"
 
 echo ""
 echo "========================================="

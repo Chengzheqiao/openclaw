@@ -22,6 +22,44 @@ ops::cd_project() {
   cd "$OPS_PROJECT_DIR"
 }
 
+ops::load_nvm() {
+  local nvm_dir="${NVM_DIR:-$HOME/.nvm}"
+  if [[ ! -s "$nvm_dir/nvm.sh" ]]; then
+    return 1
+  fi
+  export NVM_DIR="$nvm_dir"
+  # shellcheck disable=SC1090
+  . "$NVM_DIR/nvm.sh"
+}
+
+ops::use_project_node() {
+  local nvmrc_path="$OPS_PROJECT_DIR/.nvmrc"
+  if [[ ! -f "$nvmrc_path" ]]; then
+    return 0
+  fi
+  if ! ops::load_nvm; then
+    return 0
+  fi
+  if ! nvm use >/dev/null 2>&1; then
+    echo "[INFO] Installing Node version from .nvmrc..."
+    nvm install >/dev/null
+    nvm use >/dev/null
+  fi
+}
+
+ops::has_global_openclaw() {
+  command -v openclaw >/dev/null 2>&1
+}
+
+ops::run_openclaw() {
+  if ops::has_global_openclaw; then
+    openclaw "$@"
+    return
+  fi
+
+  node openclaw.mjs "$@"
+}
+
 ops::port_listener_pids() {
   local port="${1:?port required}"
 
